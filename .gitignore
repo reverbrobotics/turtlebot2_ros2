@@ -1,0 +1,21 @@
+# colcon / ament build artifacts, in case anyone builds in-tree
+build/
+install/
+log/
+.deps_prefix/
+
+# C/C++ build leftovers
+*.o
+*.so
+*.so.*
+*.a
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store

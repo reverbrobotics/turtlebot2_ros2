@@ -1,29 +1,132 @@
 # turtlebot2_ros2
-This project contains a minimal example for setting up ROS 2 Humble on the Kobuki [TurtleBot 2 platform](https://www.turtlebot.com/). Teleoperation using the keyboard and a joystick controller is demonstrated. 
+
+This project contains a minimal example for setting up ROS 2 on the Kobuki
+[TurtleBot 2 platform](https://www.turtlebot.com/). Teleoperation using the
+keyboard and a joystick controller is demonstrated.
 For a comprehensive guide, see [idorobotics.com](https://idorobotics.com/2024/02/20/ros2-on-kobuki-turtlebot/).
-## Setup
+
+Supported distributions:
+
+- **ROS 2 Lyrical / Ubuntu 26.04** — current, see below.
+- **ROS 2 Humble / Ubuntu 22.04** — the original target; see
+  [Humble setup](#humble-setup) at the bottom.
+
+If you are porting an existing Humble workspace, [MIGRATION-lyrical.md](MIGRATION-lyrical.md)
+explains every change and why it was needed.
+
+## Setup (Lyrical)
+
 To setup the TurtleBot 2 mobile robot base:
+
+- Install the build and runtime dependencies. Note that `sophus` now pulls in
+  Ceres, and that `kobuki_velocity_smoother` is **not** released for Lyrical —
+  it is built from source as part of this repository instead.
+
+```bash
+sudo apt update && sudo apt install -y ros-lyrical-ecl-build ros-lyrical-ecl-license ros-lyrical-sophus ros-lyrical-diagnostic-updater ros-lyrical-joint-state-publisher ros-lyrical-xacro ros-lyrical-ros-testing libusb-1.0-0-dev libftdi1-dev
+```
+
+- In a ROS 2 workspace, clone this repository with its submodules (which adds the
+  kobuki_core, kobuki_ros, kobuki_ros_interfaces, kobuki_velocity_smoother,
+  cmd_vel_mux, ecl_core and ecl_lite packages):
+
+```bash
+git clone --recurse-submodules https://github.com/idorobotics/turtlebot2_ros2.git
+```
+
+- Install any missing dependencies (run `sudo rosdep init && rosdep update`
+  first if you have never used rosdep on this machine):
+
+```bash
+rosdep install -i --from-path src --rosdistro lyrical -y
+```
+
+- Build the workspace:
+
+```bash
+colcon build --symlink-install --executor sequential
+```
+
+  Ubuntu 26.04 ships CMake 4, which rejects the `cmake_minimum_required(VERSION 2.8)`
+  inside `ros-lyrical-ecl-build`'s `cotire.cmake`. This machine's
+  `~/.colcon/defaults.yaml` already supplies `-DCMAKE_POLICY_VERSION_MINIMUM=3.5`
+  (along with `-DPython3_EXECUTABLE=/usr/bin/python3`); on a machine without that
+  file you need:
+
+```bash
+colcon build --symlink-install --executor sequential --cmake-args -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+```
+
+- Install the udev rules, then check version information and run the
+  kobuki-simple-keyop test noted in the
+  [official guide](https://kobuki.readthedocs.io/en/release-1.0.x/software.html):
+
+```bash
+sudo cp src/turtlebot2_ros2/kobuki_core/60-kobuki.rules /etc/udev/rules.d/ && sudo udevadm control --reload-rules && sudo udevadm trigger
+```
+
+## Testing
+
+To test this setup, run remote teleoperation to control (drive around) the robot
+from a workstation (laptop) computer following the steps below:
+
+- Install the teleop packages:
+
+```bash
+sudo apt-get install ros-lyrical-teleop-twist-keyboard ros-lyrical-teleop-tools ros-lyrical-teleop-twist-joy
+```
+
+- Open an ssh connection to the robot then start the robot:
+
+```bash
+ros2 launch kobuki_node kobuki_node-launch.py
+```
+
+- Run keyboard teleoperation (to drive the robot using a keyboard):
+
+```bash
+ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args --remap cmd_vel:=commands/velocity
+```
+
+- Alternatively, run joystick teleoperation (to drive the robot using a
+  joystick). Lyrical's `teleop_twist_joy` now ships a `pdp` config of its own,
+  so you can select it by name:
+
+```bash
+ros2 launch teleop_twist_joy teleop-launch.py joy_config:='pdp' joy_vel:='commands/velocity'
+```
+
+  To use this repository's copy instead (it enables on button 4 rather than 2):
+
+```bash
+ros2 launch teleop_twist_joy teleop-launch.py config_filepath:='/path/to/ros2_ws/src/turtlebot2_ros2/configs/pdp.config.yaml' joy_vel:='commands/velocity'
+```
+
+  If you're using a different joystick like PS3 then run:
+
+```bash
+ros2 launch teleop_twist_joy teleop-launch.py joy_config:='ps3' joy_vel:='commands/velocity'
+```
+
+Both teleop nodes publish plain `geometry_msgs/Twist` by default on Lyrical,
+which is what `kobuki_node` subscribes to. If you set `teleop_twist_keyboard`'s
+`stamped` parameter or `teleop_twist_joy`'s `publish_stamped_twist` launch
+argument to `true`, the robot will stop responding.
+
+The Kobuki TurtleBot 2 is now fully migrated to ROS 2 and is ready for more
+complex navigation tasks.
+
+## Humble setup
+
+The original Humble instructions, for reference:
+
 - Install the velocity smoother and sophus packages:
-```sudo apt-get install ros-humble-kobuki-velocity-smoother ros-humble-sophus```
-- In a ROS 2 workspace, clone this repository (which adds the kobuki_core, kobuki_ros, kobuki_ros_interfaces, cmd_vel_mux, ecl_core and ecl_lite packages):
-```git clone https://github.com/idorobotics/turtlebot2_ros2.git```
-- Install any missing depencies:
-```rosdep install -i --from-path src --rosdistro humble -y```
-- Build the workspace
-```colcon build --symlink-install --executor sequential```
-- Update udev rules, check version information and run the kobuki-simple-keyop test noted in the [official guide](https://kobuki.readthedocs.io/en/release-1.0.x/software.html).
- ## Testing
- To test this setup, run remote teleoperation to control (drive around) the robot from a workstation (laptop) computer following the steps below:
- - Install the teleop packages:
- ```sudo apt-get install ros-humble-teleop-twist-keyboard ros-humble-joy-teleop ros-humble-teleop-twist-joy```
- - Open an ssh connection to the robot then start the robot:
- ```ros2 launch kobuki_node kobuki_node-launch.py```
- - Run keyboard teleoperation (to drive the robot using a keyboard):
- ```ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args --remap cmd_vel:=commands/velocity```
- - Alternatively, run joystick teleoperation (to drive the robot using a joystick):
- ```ros2 launch teleop_twist_joy teleop-launch.py config_filepath:='/path/to/ros2_ws/src/configs/pdp.config.yaml' joy_vel:='commands/velocity'```
+  `sudo apt-get install ros-humble-kobuki-velocity-smoother ros-humble-sophus`
+- Clone this repository into a ROS 2 workspace.
+- `rosdep install -i --from-path src --rosdistro humble -y`
+- `colcon build --symlink-install --executor sequential`
+- Teleop packages: `sudo apt-get install ros-humble-teleop-twist-keyboard ros-humble-joy-teleop ros-humble-teleop-twist-joy`
 
-   If you're using a different joystick like PS3 then run:
-```ros2 launch teleop_twist_joy teleop-launch.py joy_config:='ps3' joy_vel:='commands/velocity'```
-
-The Kobuki TurtleBot 2 is now fully migrated to ROS 2 and is ready for more complex navigation tasks. 
+The source changes described in [MIGRATION-lyrical.md](MIGRATION-lyrical.md) have
+not been re-tested against Humble. The `.hpp` header renames in particular will
+not work there — Humble still ships the `.h` names.

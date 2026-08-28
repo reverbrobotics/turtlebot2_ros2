@@ -15,6 +15,11 @@ repositories:
     type: git
     url: https://github.com/kobuki-base/kobuki_ros_interfaces.git
     version: devel
+  # Not released as a binary for Lyrical, so it has to be built from source.
+  kobuki-base/velocity_smoother:
+    type: git
+    url: https://github.com/kobuki-base/velocity_smoother.git
+    version: devel
   stonier/ecl_core:
     type: git
     url: https://github.com/stonier/ecl_core.git
