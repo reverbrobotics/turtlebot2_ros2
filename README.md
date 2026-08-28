@@ -37,7 +37,7 @@ sudo apt update && sudo apt install -y ros-lyrical-sophus ros-lyrical-diagnostic
   ecl_core, ecl_lite and ecl_tools packages):
 
 ```bash
-git clone https://github.com/idorobotics/turtlebot2_ros2.git
+git clone https://github.com/reverbrobotics/turtlebot2_ros2.git
 ```
 
 - Install any missing dependencies (run `sudo rosdep init && rosdep update`
