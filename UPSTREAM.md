@@ -19,9 +19,15 @@ Flattened on 2026-08-28 from these exact upstream commits:
 | `kobuki_ros` | https://github.com/kobuki-base/kobuki_ros.git | `fb7ca00d361665fc0be49f37c2c7e94c018018a8` | `1.0.0-42-gfb7ca00` |
 | `kobuki_ros_interfaces` | https://github.com/kobuki-base/kobuki_ros_interfaces.git | `7711d4fbec13c69bcf6477ce8e446c3ccca33113` | `1.0.0-4-g7711d4f` |
 | `kobuki_velocity_smoother` | https://github.com/kobuki-base/velocity_smoother.git | `543f3f194b7069a8994fba6ff8bcad579bdc47f0` | `0.15.0-1-g543f3f1` |
+| `ecl_tools` | https://github.com/stonier/ecl_tools.git | `1a6d9498f13fb3820edf5b79f2c65d3dffa05d53` | `1.0.3` |
 
 `kobuki_core` and `kobuki_ros_interfaces` are byte-identical to upstream — they
-needed no changes for Lyrical. The other five carry local modifications.
+needed no changes for Lyrical. The other six carry local modifications.
+
+`ecl_tools` (providing `ecl_build` and `ecl_license`) is vendored rather than
+apt-installed specifically so that its `cotire.cmake` can be fixed for CMake 4 —
+see [MIGRATION-lyrical.md](MIGRATION-lyrical.md) §2.1. If you ever go back to
+`ros-lyrical-ecl-build`, you will need `-DCMAKE_POLICY_VERSION_MINIMUM=3.5` again.
 
 All of these projects are BSD licensed; their `LICENSE` files and per-package
 `package.xml` license declarations are preserved in place.

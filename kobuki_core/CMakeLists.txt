@@ -2,7 +2,7 @@
 # Cmake
 ##############################################################################
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.5...3.10)
 project(kobuki_core)
 
 # Turn -isystem off. Actually like to see warnings from underlying packages

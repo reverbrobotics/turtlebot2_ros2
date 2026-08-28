@@ -14,8 +14,8 @@ Verified against:
 | CMake | 4.2.3 (system) — also verified on 3.29.3 |
 | Python | 3.14.4 |
 
-All 45 packages configure, compile, install and launch cleanly from a clean
-`build/`, `install/`, `log/`.
+All 48 packages configure, compile, install and launch cleanly from a clean
+`build/`, `install/`, `log/`, with zero warnings.
 
 ---
 
@@ -26,7 +26,6 @@ All 45 packages configure, compile, install and launch cleanly from a clean
 ```bash
 sudo apt update
 sudo apt install -y \
-  ros-lyrical-ecl-build ros-lyrical-ecl-license \
   ros-lyrical-sophus ros-lyrical-diagnostic-updater \
   ros-lyrical-joint-state-publisher ros-lyrical-xacro \
   ros-lyrical-ros-testing \
@@ -34,6 +33,9 @@ sudo apt install -y \
   ros-lyrical-teleop-tools \
   libusb-1.0-0-dev libftdi1-dev
 ```
+
+`ros-lyrical-ecl-build` and `ros-lyrical-ecl-license` are **not** installed —
+`ecl_tools` is vendored into this repository instead, see §2.1.
 
 `ros-lyrical-sophus` is the piece that changed the most. Humble's Sophus was
 header-only against Eigen; the Lyrical package (1.22.9102) declares
@@ -59,15 +61,8 @@ rosdep resolves that key to `ros-lyrical-kobuki-velocity-smoother`, which **does
 not exist** — the package has not been released for Lyrical, so
 `rosdep install` fails at the apt step.
 
-It has been added to the workspace as a source submodule instead:
-
-```
-[submodule "kobuki_velocity_smoother"]
-	path = kobuki_velocity_smoother
-	url = https://github.com/kobuki-base/velocity_smoother.git
-```
-
-and to `turtlebot2_ros2_demo/turtlebot2_ros2_demo.repos`. Its C++ needed no
+It is vendored into this repository instead (see [UPSTREAM.md](UPSTREAM.md)) and
+listed in `turtlebot2_ros2_demo/turtlebot2_ros2_demo.repos`. Its C++ needed no
 changes; two of its launch files did (see §5.3).
 
 ### 1.3 Packages that are *not* built
@@ -82,41 +77,64 @@ ROS 1 keys. Left as-is.
 
 ## 2. Build configuration
 
-### 2.1 CMake 4 rejects `cmake_minimum_required(VERSION 2.8)`
+### 2.1 CMake 4 rejects `cmake_minimum_required(VERSION 2.8)` — `ecl_tools` is vendored
 
 Ubuntu 26.04 ships **CMake 4.2.3**, which removed compatibility with
-`cmake_minimum_required` values below 3.5. `cotire.cmake` — shipped *inside the
-binary* `ros-lyrical-ecl-build` package, not in this repo — still declares 2.8:
+`cmake_minimum_required` values below 3.5. `cotire.cmake` declares 2.8.12:
 
 ```
 CMake Error at .../share/ecl_build/cmake/cotire.cmake:45 (cmake_minimum_required):
   Compatibility with CMake < 3.5 has been removed from CMake.
 ```
 
-Every ecl package does `find_package(ecl_build)`, so this stops the build at
-`ecl_config`. Since the file belongs to an apt-installed package, patching it is
-not durable across upgrades. The fix is to configure with:
+Every ecl package does `find_package(ecl_build)`, so this stops the build dead at
+`ecl_config`. That one line is the *only* sub-3.5 declaration anywhere in
+`ecl_build`.
+
+The first pass worked around it with `-DCMAKE_POLICY_VERSION_MINIMUM=3.5`, but
+that is a global sledgehammer, has to be threaded through every deployment, and
+left a "Manually-specified variables were not used" warning on every package
+under CMake < 3.30. Instead, **`ecl_tools` (which provides `ecl_build` and
+`ecl_license`) is now vendored into this repository** at upstream `1a6d949` /
+`1.0.3`, with `cotire.cmake` fixed at source:
+
+```cmake
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5...3.10)
+```
+
+Since the workspace overlay takes precedence over `/opt/ros/lyrical`, this fixes
+it for every downstream package, survives apt upgrades, and needs no build flags.
+`cotire` is a precompiled-header helper that nothing in this workspace ever calls
+into — the value only applies inside cotire's own body, which is bracketed by
+`cmake_policy(PUSH/POP)`.
+
+### 2.2 Zero-warning build
+
+With `ecl_tools` vendored, the remaining noise was 48 copies of
 
 ```
--DCMAKE_POLICY_VERSION_MINIMUM=3.5
+CMake Deprecation Warning at CMakeLists.txt:1 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of CMake.
 ```
 
-The repo's own `cmake_minimum_required(VERSION 3.5)` calls are fine — 3.5 is
-exactly the boundary CMake 4 still accepts. They emit a deprecation warning
-("Compatibility with CMake < 3.10 will be removed") but nothing more.
+Every `cmake_minimum_required(VERSION 3.5)` (and the two `2.8.3` ones in
+`ecl_core`) was rewritten to range syntax — `VERSION 3.5...3.10`. This is
+deliberately *not* a bump: the declared minimum stays at 3.5 so older CMake can
+still configure the project, while `<max>` tells CMake the code is fine with
+policies up to 3.10, which is what silences the warning.
 
-### 2.2 How to pass that flag on this machine
+The last warning was ours: `ecl_core/ecl_threads/ecl_threads-extras.cmake` calls
+`ecl_detect_threads()`, which does a bare `include(FindThreads)` rather than
+`find_package(Threads)`. Because the extras file runs inside
+`find_package(ecl_threads)`, `CMAKE_FIND_PACKAGE_NAME` is still `ecl_threads`
+when FindThreads calls `find_package_handle_standard_args(Threads ...)`, which
+raises an AUTHOR_WARNING about the mismatch. Wrapped the call in
+`set(FPHSA_NAME_MISMATCHED TRUE)` / `unset(...)`, the documented way to declare
+the mismatch intentional.
 
-**Do not** pass `--cmake-args` on the command line here. `~/.colcon/defaults.yaml`
-already supplies `-DPython3_EXECUTABLE=/usr/bin/python3` (because a uv-managed
-CPython 3.12 in `~/.local/bin` otherwise wins `FindPython3` and has no
-`catkin_pkg`), and colcon-defaults **replaces** rather than merges the
-`cmake-args` list — so a command-line `--cmake-args` silently drops it and the
-build fails with `ModuleNotFoundError: No module named 'catkin_pkg'`.
-
-`-DCMAKE_POLICY_VERSION_MINIMUM=3.5` has therefore been added to
-`~/.colcon/defaults.yaml` alongside the existing entries, keeping a bare
-`colcon build` the complete command.
+Result: **48 packages, zero compiler and zero CMake output**, on CMake 4.2.3 and
+on CMake 3.29.3.
 
 ### 2.3 `ament_target_dependencies()` was removed
 
@@ -163,6 +181,19 @@ folded into the new keyword-signature call — CMake forbids mixing the keyword
 Everything else in the ament CMake API (`ament_export_dependencies`,
 `ament_export_include_directories`, `ament_export_libraries`,
 `ament_export_targets`, `ament_package`) is unchanged.
+
+### 2.4 A colcon-defaults trap worth knowing about
+
+Unrelated to Lyrical, but it will bite anyone passing build flags here.
+`~/.colcon/defaults.yaml` on this machine supplies
+`-DPython3_EXECUTABLE=/usr/bin/python3`, because a uv-managed CPython 3.12 in
+`~/.local/bin` otherwise wins `FindPython3` and has no `catkin_pkg`.
+colcon-defaults **replaces** rather than merges the `cmake-args` list, so passing
+`--cmake-args` on the command line silently drops that and the build fails with
+`ModuleNotFoundError: No module named 'catkin_pkg'`. Since the port no longer
+needs any build flags, this should not come up — but if you ever add one, add it
+to the defaults file rather than the command line.
+
 
 ---
 
@@ -333,19 +364,27 @@ Worth recording, because they are the usual suspects:
  kobuki_ros/kobuki_safety_controller/CMakeLists.txt
  kobuki_ros/kobuki_safety_controller/launch/safety_controller-composed-launch.py
  kobuki_ros/kobuki_safety_controller/launch/safety_controller-launch.py
- kobuki_velocity_smoother/launch/velocity_smoother-launch.py             (new submodule)
- kobuki_velocity_smoother/launch/velocity_smoother-composed-launch.py    (new submodule)
+ kobuki_velocity_smoother/launch/velocity_smoother-launch.py             (vendored)
+ kobuki_velocity_smoother/launch/velocity_smoother-composed-launch.py    (vendored)
+ ecl_tools/ecl_build/cmake/cotire.cmake                                  (vendored)
+ ecl_core/ecl_threads/ecl_threads-extras.cmake
+ <51 files>  cmake_minimum_required(VERSION X) -> (VERSION X...3.10)
 ```
 
-Outside the repo: `~/.colcon/defaults.yaml` gained
-`-DCMAKE_POLICY_VERSION_MINIMUM=3.5`.
+Plus `ecl_tools/` (newly vendored, with the `cotire.cmake` fix) and the
+`cmake_minimum_required` range-syntax rewrite across all 51 CMake files.
+
+Nothing outside the repo is required any more — the earlier
+`-DCMAKE_POLICY_VERSION_MINIMUM=3.5` entry in `~/.colcon/defaults.yaml` has been
+removed, since §2.1 makes it unnecessary.
 
 ---
 
 ## 8. Verification performed
 
-Clean `colcon build` (no warnings-as-errors, no failures) with both CMake 3.29.3
-and CMake 4.2.3 — 45 packages.
+Clean `colcon build` with both CMake 3.29.3 and CMake 4.2.3 — 48 packages,
+zero failures and zero stderr output of any kind (no compiler warnings, no CMake
+warnings, no deprecation notices).
 
 Every launch file was started and checked for clean startup:
 

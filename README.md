@@ -23,15 +23,21 @@ To setup the TurtleBot 2 mobile robot base:
   it is built from source as part of this repository instead.
 
 ```bash
-sudo apt update && sudo apt install -y ros-lyrical-ecl-build ros-lyrical-ecl-license ros-lyrical-sophus ros-lyrical-diagnostic-updater ros-lyrical-joint-state-publisher ros-lyrical-xacro ros-lyrical-ros-testing libusb-1.0-0-dev libftdi1-dev
+sudo apt update && sudo apt install -y ros-lyrical-sophus ros-lyrical-diagnostic-updater ros-lyrical-joint-state-publisher ros-lyrical-xacro ros-lyrical-ros-testing libusb-1.0-0-dev libftdi1-dev
 ```
 
-- In a ROS 2 workspace, clone this repository with its submodules (which adds the
-  kobuki_core, kobuki_ros, kobuki_ros_interfaces, kobuki_velocity_smoother,
-  cmd_vel_mux, ecl_core and ecl_lite packages):
+  `ros-lyrical-ecl-build` and `ros-lyrical-ecl-license` are deliberately **not**
+  in that list — `ecl_tools` is built from source here instead, because its
+  `cotire.cmake` needs a one-line fix to configure under CMake 4 (see
+  [MIGRATION-lyrical.md](MIGRATION-lyrical.md) §2). Having them installed as well
+  does no harm; the workspace overlay takes precedence.
+
+- In a ROS 2 workspace, clone this repository (which contains the kobuki_core,
+  kobuki_ros, kobuki_ros_interfaces, kobuki_velocity_smoother, cmd_vel_mux,
+  ecl_core, ecl_lite and ecl_tools packages):
 
 ```bash
-git clone --recurse-submodules https://github.com/idorobotics/turtlebot2_ros2.git
+git clone https://github.com/idorobotics/turtlebot2_ros2.git
 ```
 
 - Install any missing dependencies (run `sudo rosdep init && rosdep update`
@@ -47,15 +53,9 @@ rosdep install -i --from-path src --rosdistro lyrical -y
 colcon build --symlink-install --executor sequential
 ```
 
-  Ubuntu 26.04 ships CMake 4, which rejects the `cmake_minimum_required(VERSION 2.8)`
-  inside `ros-lyrical-ecl-build`'s `cotire.cmake`. This machine's
-  `~/.colcon/defaults.yaml` already supplies `-DCMAKE_POLICY_VERSION_MINIMUM=3.5`
-  (along with `-DPython3_EXECUTABLE=/usr/bin/python3`); on a machine without that
-  file you need:
-
-```bash
-colcon build --symlink-install --executor sequential --cmake-args -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-```
+  No extra `--cmake-args` are required. The build is clean — 48 packages, zero
+  compiler or CMake warnings — on both CMake 4.2.3 (the Ubuntu 26.04 default) and
+  CMake 3.29.
 
 - Install the udev rules, then check version information and run the
   kobuki-simple-keyop test noted in the
