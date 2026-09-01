@@ -1,6 +1,7 @@
 """Bring up a Kobuki-based TurtleBot 2 the way ROS 1's turtlebot_bringup did.
 
-Starts the base driver (kobuki_node), the cmd_vel multiplexer, the safety
+Starts the robot description (robot_state_publisher, from kobuki_description's
+URDF), the base driver (kobuki_node), the cmd_vel multiplexer, the safety
 controller and the velocity smoother, and wires them together:
 
   teleop / nav (input/teleop, input/navigation, ...)
@@ -11,6 +12,12 @@ controller and the velocity smoother, and wires them together:
         |                          |
   safety_controller ---------------+--(feedback/cmd_vel, self-loop)
   (input/safety)         (commands/velocity is also read back as feedback)
+
+No joint_state_publisher here, unlike kobuki_description's own
+robot_description.launch.py: kobuki_node already publishes real /joint_states
+from the wheel encoders (using the same wheel_left_joint/wheel_right_joint
+names the URDF expects), exactly as ROS 1's driver did. Running the generic
+one alongside would just race it with fake, static values.
 
 To drive the robot with teleop_twist_keyboard, remap its output topic to
 the mux's teleop input:
@@ -25,6 +32,7 @@ import ament_index_python.packages
 import launch
 import launch.actions
 import launch.launch_description_sources
+import launch.substitutions
 import launch_ros.actions
 
 import yaml
@@ -35,6 +43,18 @@ def generate_launch_description():
     bringup_share = ament_index_python.packages.get_package_share_directory('turtlebot_bringup')
     smoother_share = ament_index_python.packages.get_package_share_directory('kobuki_velocity_smoother')
     safety_share = ament_index_python.packages.get_package_share_directory('kobuki_safety_controller')
+    description_share = ament_index_python.packages.get_package_share_directory('kobuki_description')
+
+    # Robot description: base_link and everything fixed to it. This is what
+    # ROS 1's minimal.launch got from includes/robot.launch.xml.
+    urdf_path = os.path.join(description_share, 'urdf', 'kobuki_standalone.urdf.xacro')
+    robot_state_publisher_node = launch_ros.actions.Node(
+        package='robot_state_publisher',
+        executable='robot_state_publisher',
+        output='both',
+        parameters=[{
+            'robot_description': launch.substitutions.Command(['xacro ', urdf_path]),
+        }])
 
     # Base driver: unchanged, its default topics (commands/velocity, odom)
     # are exactly what the smoother is wired up to use below.
@@ -86,6 +106,7 @@ def generate_launch_description():
         ])
 
     return launch.LaunchDescription([
+        robot_state_publisher_node,
         kobuki_node_launch,
         cmd_vel_mux_node,
         safety_controller_node,
