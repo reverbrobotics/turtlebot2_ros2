@@ -1,0 +1,23 @@
+<package format="2">
+  <name>turtlebot_bringup</name>
+  <version>0.1.0</version>
+  <description>
+    Bringup launch file for the Kobuki-based TurtleBot 2: starts the base
+    driver, cmd_vel multiplexer, safety controller and velocity smoother
+    wired together, mirroring the behaviour of the ROS 1 turtlebot_bringup
+    minimal.launch.
+  </description>
+  <maintainer email="lukasgrasse@gmail.com">Lukas Grasse</maintainer>
+  <license>BSD</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>cmd_vel_mux</exec_depend>
+  <exec_depend>kobuki_node</exec_depend>
+  <exec_depend>kobuki_safety_controller</exec_depend>
+  <exec_depend>kobuki_velocity_smoother</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

@@ -34,7 +34,7 @@ sudo apt update && sudo apt install -y ros-lyrical-sophus ros-lyrical-diagnostic
 
 - In a ROS 2 workspace, clone this repository (which contains the kobuki_core,
   kobuki_ros, kobuki_ros_interfaces, kobuki_velocity_smoother, cmd_vel_mux,
-  ecl_core, ecl_lite and ecl_tools packages):
+  turtlebot_bringup, ecl_core, ecl_lite and ecl_tools packages):
 
 ```bash
 git clone https://github.com/reverbrobotics/turtlebot2_ros2.git
@@ -76,16 +76,21 @@ from a workstation (laptop) computer following the steps below:
 sudo apt-get install ros-lyrical-teleop-twist-keyboard ros-lyrical-teleop-tools ros-lyrical-teleop-twist-joy
 ```
 
-- Open an ssh connection to the robot then start the robot:
+- Open an ssh connection to the robot then start the robot with `turtlebot_bringup`.
+  This is the ROS 2 equivalent of ROS 1's `turtlebot_bringup minimal.launch`: it
+  starts `kobuki_node` alongside `cmd_vel_mux`, `kobuki_safety_controller` and
+  `kobuki_velocity_smoother`, wired together so that all velocity commands are
+  multiplexed, bump/cliff/wheel-drop-safe, and acceleration-limited before
+  reaching the base — rather than talking to `kobuki_node` directly:
 
 ```bash
-ros2 launch kobuki_node kobuki_node-launch.py
+ros2 launch turtlebot_bringup turtlebot_bringup-launch.py
 ```
 
 - Run keyboard teleoperation (to drive the robot using a keyboard):
 
 ```bash
-ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args --remap cmd_vel:=commands/velocity
+ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args --remap cmd_vel:=input/teleop
 ```
 
 - Alternatively, run joystick teleoperation (to drive the robot using a
@@ -93,25 +98,32 @@ ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args --remap cmd_vel:
   so you can select it by name:
 
 ```bash
-ros2 launch teleop_twist_joy teleop-launch.py joy_config:='pdp' joy_vel:='commands/velocity'
+ros2 launch teleop_twist_joy teleop-launch.py joy_config:='pdp' joy_vel:='input/teleop'
 ```
 
   To use this repository's copy instead (it enables on button 4 rather than 2):
 
 ```bash
-ros2 launch teleop_twist_joy teleop-launch.py config_filepath:='/path/to/ros2_ws/src/turtlebot2_ros2/configs/pdp.config.yaml' joy_vel:='commands/velocity'
+ros2 launch teleop_twist_joy teleop-launch.py config_filepath:='/path/to/ros2_ws/src/turtlebot2_ros2/configs/pdp.config.yaml' joy_vel:='input/teleop'
 ```
 
   If you're using a different joystick like PS3 then run:
 
 ```bash
-ros2 launch teleop_twist_joy teleop-launch.py joy_config:='ps3' joy_vel:='commands/velocity'
+ros2 launch teleop_twist_joy teleop-launch.py joy_config:='ps3' joy_vel:='input/teleop'
 ```
 
 Both teleop nodes publish plain `geometry_msgs/Twist` by default on Lyrical,
-which is what `kobuki_node` subscribes to. If you set `teleop_twist_keyboard`'s
-`stamped` parameter or `teleop_twist_joy`'s `publish_stamped_twist` launch
-argument to `true`, the robot will stop responding.
+which is what `cmd_vel_mux`'s `input/teleop` subscriber expects. If you set
+`teleop_twist_keyboard`'s `stamped` parameter or `teleop_twist_joy`'s
+`publish_stamped_twist` launch argument to `true`, the robot will stop
+responding.
+
+If you need to talk to the base driver directly (e.g. for low-level
+debugging, bypassing the mux/smoother/safety controller), you can still run
+`ros2 launch kobuki_node kobuki_node-launch.py` on its own and remap teleop's
+`cmd_vel` to `commands/velocity` instead — but `turtlebot_bringup` is the
+recommended way to drive the robot.
 
 The Kobuki TurtleBot 2 is now fully migrated to ROS 2 and is ready for more
 complex navigation tasks.
