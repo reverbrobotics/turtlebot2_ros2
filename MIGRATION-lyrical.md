@@ -326,7 +326,7 @@ Worth recording, because they are the usual suspects:
   README's `--remap cmd_vel:=commands/velocity` still lines up with
   `kobuki_node`'s `Twist` subscriber. If either is ever switched to stamped,
   `kobuki_node` will silently stop receiving commands.
-- **`configs/pdp.config.yaml`** is still valid, and Lyrical's `teleop_twist_joy`
+- **`configs/pdp.config.yaml`** (since moved to `turtlebot_teleop/config/`) is still valid, and Lyrical's `teleop_twist_joy`
   now ships its own `pdp.config.yaml`, so `joy_config:='pdp'` works without
   `config_filepath`. Note that the upstream one uses `enable_button: 2` where
   this repo's uses `4`.

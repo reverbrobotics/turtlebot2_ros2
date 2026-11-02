@@ -1,0 +1,26 @@
+<package format="2">
+  <name>turtlebot_rviz_launchers</name>
+  <version>0.1.0</version>
+  <description>
+    RViz launchers for the Kobuki-based TurtleBot 2 (view_robot,
+    view_navigation), mirroring the ROS 1 turtlebot_rviz_launchers. Run on
+    the workstation.
+  </description>
+  <maintainer email="lukasgrasse@gmail.com">Lukas Grasse</maintainer>
+  <!-- The launch files are BSD; rviz/*.rviz are derived from nav2_bringup's
+       nav2_default_view.rviz, which is Apache-2.0. -->
+  <license>BSD</license>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- kobuki_description provides the meshes the RobotModel display loads. -->
+  <exec_depend>kobuki_description</exec_depend>
+  <exec_depend>nav2_rviz_plugins</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>rviz_default_plugins</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

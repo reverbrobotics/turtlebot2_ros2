@@ -50,7 +50,10 @@ slam_toolbox:
     # especially while turning.
     minimum_travel_distance: 0.2
     minimum_travel_heading: 0.2
-    check_min_dist_and_heading_precisely: false
+    # Without this, slam_toolbox only checks distance travelled and ignores
+    # minimum_travel_heading, so turning in place never adds a scan. With a
+    # ~58 degree "scan", turning in place is how the rest of a room is seen.
+    check_min_dist_and_heading_precisely: true
     scan_buffer_size: 10
     scan_buffer_maximum_scan_distance: 5.0
     link_match_minimum_response_fine: 0.1

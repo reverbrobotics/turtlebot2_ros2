@@ -36,8 +36,9 @@ sudo apt update && sudo apt install -y ros-lyrical-sophus ros-lyrical-diagnostic
 
 - In a ROS 2 workspace, clone this repository (which contains the kobuki_core,
   kobuki_ros, kobuki_ros_interfaces, kobuki_velocity_smoother, cmd_vel_mux,
-  turtlebot_bringup, turtlebot_description, turtlebot_navigation, ecl_core,
-  ecl_lite and ecl_tools packages):
+  turtlebot_bringup, turtlebot_description, turtlebot_navigation,
+  turtlebot_rviz_launchers, turtlebot_teleop, ecl_core, ecl_lite and ecl_tools
+  packages):
 
 ```bash
 git clone https://github.com/reverbrobotics/turtlebot2_ros2.git
@@ -56,7 +57,7 @@ rosdep install -i --from-path src --rosdistro lyrical -y
 colcon build --symlink-install --executor sequential
 ```
 
-  No extra `--cmake-args` are required. The build is clean — 51 packages, zero
+  No extra `--cmake-args` are required. The build is clean — 53 packages, zero
   compiler or CMake warnings — on both CMake 4.2.3 (the Ubuntu 26.04 default) and
   CMake 3.29.
 
@@ -79,41 +80,43 @@ from a workstation (laptop) computer following the steps below:
 sudo apt-get install ros-lyrical-teleop-twist-keyboard ros-lyrical-teleop-tools ros-lyrical-teleop-twist-joy
 ```
 
-- Open an ssh connection to the robot then start the robot with `turtlebot_bringup`.
-  This is the ROS 2 equivalent of ROS 1's `turtlebot_bringup minimal.launch`: it
-  starts `kobuki_node` alongside `cmd_vel_mux`, `kobuki_safety_controller` and
-  `kobuki_velocity_smoother`, wired together so that all velocity commands are
-  multiplexed, bump/cliff/wheel-drop-safe, and acceleration-limited before
-  reaching the base — rather than talking to `kobuki_node` directly:
+- Open an ssh connection to the robot then start the robot, exactly like ROS 1's
+  `roslaunch turtlebot_bringup minimal.launch`. It starts `kobuki_node`
+  alongside `cmd_vel_mux`, `kobuki_safety_controller`,
+  `kobuki_velocity_smoother` and `robot_state_publisher`, wired together so that
+  all velocity commands are multiplexed, bump/cliff/wheel-drop-safe, and
+  acceleration-limited before reaching the base — rather than talking to
+  `kobuki_node` directly (`turtlebot_bringup-launch.py` is the same thing under
+  its original name):
 
 ```bash
-ros2 launch turtlebot_bringup turtlebot_bringup-launch.py
+ros2 launch turtlebot_bringup minimal-launch.py
 ```
 
-- Run keyboard teleoperation (to drive the robot using a keyboard):
+- Run keyboard teleoperation (to drive the robot using a keyboard), the
+  equivalent of ROS 1's `turtlebot_teleop keyboard_teleop.launch`. It is a
+  `ros2 run` command rather than a launch file because keyboard teleop needs the
+  terminal, which `ros2 launch` does not pass to its nodes. It starts at
+  0.2 m/s and 1.0 rad/s; `q`/`z` change the speed:
 
 ```bash
-ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args --remap cmd_vel:=input/teleop
+ros2 run turtlebot_teleop keyboard_teleop
 ```
 
 - Alternatively, run joystick teleoperation (to drive the robot using a
-  joystick). Lyrical's `teleop_twist_joy` now ships a `pdp` config of its own,
-  so you can select it by name:
+  joystick). The default is this repository's PDP config (hold `LB` to drive,
+  `RB` for turbo):
 
 ```bash
-ros2 launch teleop_twist_joy teleop-launch.py joy_config:='pdp' joy_vel:='input/teleop'
+ros2 launch turtlebot_teleop joystick_teleop-launch.py
 ```
 
-  To use this repository's copy instead (it enables on button 4 rather than 2):
+  If you're using a different joystick, pick one of `teleop_twist_joy`'s configs
+  (`ps3`, `ps5`, `xbox`, `atk3`, `xd3`, or its own `pdp`, which enables on
+  button 2) by name:
 
 ```bash
-ros2 launch teleop_twist_joy teleop-launch.py config_filepath:='/path/to/ros2_ws/src/turtlebot2_ros2/configs/pdp.config.yaml' joy_vel:='input/teleop'
-```
-
-  If you're using a different joystick like PS3 then run:
-
-```bash
-ros2 launch teleop_twist_joy teleop-launch.py joy_config:='ps3' joy_vel:='input/teleop'
+ros2 launch turtlebot_teleop joystick_teleop-launch.py joy_config:=ps3
 ```
 
 Both teleop nodes publish plain `geometry_msgs/Twist` by default on Lyrical,
@@ -130,40 +133,49 @@ recommended way to drive the robot.
 
 ## SLAM and navigation
 
-This is the ROS 2 equivalent of ROS 1's `turtlebot_navigation`
-`gmapping_demo.launch` / `amcl_demo.launch`: the depth camera's image is
-turned into a laser scan, [slam_toolbox](https://github.com/SteveMacenski/slam_toolbox)
-builds the map (it replaces gmapping), and [Nav2](https://docs.nav2.org/)
-localizes with AMCL and drives the robot.
+This works like ROS 1's TurtleBot: the robot runs the drivers, SLAM and
+navigation, and the workstation runs RViz and teleop. The depth camera's image
+is turned into a laser scan,
+[slam_toolbox](https://github.com/SteveMacenski/slam_toolbox) builds the map (it
+replaces gmapping), and [Nav2](https://docs.nav2.org/) localizes with AMCL and
+drives the robot (it replaces move_base).
 
-| package | runs on | what it does |
+| ROS 1 | ROS 2 (this repository) | runs on |
 |---|---|---|
-| `turtlebot_description` | — | URDF: the Kobuki plus the camera frames on the top plate |
-| `turtlebot_bringup` | robot | `turtlebot_bringup-launch.py` now also runs `robot_state_publisher`; `3dsensor-launch.py` runs `openni2_camera` + `depthimage_to_laserscan` → `/scan` |
-| `turtlebot_navigation` | robot or workstation | `slam-launch.py` (slam_toolbox), `navigation-launch.py` (Nav2, with a saved map or `slam:=true`), tuned configs in `config/` |
+| `roslaunch turtlebot_bringup minimal.launch` | `ros2 launch turtlebot_bringup minimal-launch.py` | robot |
+| `roslaunch turtlebot_navigation gmapping_demo.launch` | `ros2 launch turtlebot_navigation slam_demo-launch.py` | robot |
+| `roslaunch turtlebot_navigation amcl_demo.launch map_file:=...` | `ros2 launch turtlebot_navigation amcl_demo-launch.py map:=...` | robot |
+| `roslaunch turtlebot_rviz_launchers view_navigation.launch` | `ros2 launch turtlebot_rviz_launchers view_navigation-launch.py` | workstation |
+| `roslaunch turtlebot_rviz_launchers view_robot.launch` | `ros2 launch turtlebot_rviz_launchers view_robot-launch.py` | workstation |
+| `roslaunch turtlebot_teleop keyboard_teleop.launch` | `ros2 run turtlebot_teleop keyboard_teleop` | workstation |
+| `roslaunch turtlebot_teleop logitech.launch` (etc.) | `ros2 launch turtlebot_teleop joystick_teleop-launch.py joy_config:=...` | workstation |
+| `rosrun map_server map_saver -f ...` | `ros2 run nav2_map_server map_saver_cli -f ...` | either |
 
-Nav2's output goes to `cmd_vel_mux`'s `input/navigation`, so the safety
-controller (bumpers/cliffs/wheel drops) and teleop both override it, and
-`kobuki_velocity_smoother` still applies the acceleration limits.
+As in ROS 1, the `*_demo` launch files also start the depth camera
+(`3dsensor-launch.py`), so there is nothing else to run on the robot.
+Navigation's velocity commands go to `cmd_vel_mux`'s `input/navigation`, so the
+safety controller (bumpers/cliffs/wheel drops) and teleop both override it,
+and `kobuki_velocity_smoother` still applies the acceleration limits.
 
 ### Install
 
-On the robot (the camera driver and scan conversion):
+On the robot (camera driver, scan conversion, SLAM and Nav2):
 
 ```bash
-sudo apt install -y ros-lyrical-openni2-camera ros-lyrical-depthimage-to-laserscan ros-lyrical-robot-state-publisher
+sudo apt install -y ros-lyrical-openni2-camera ros-lyrical-depthimage-to-laserscan ros-lyrical-robot-state-publisher ros-lyrical-navigation2 ros-lyrical-slam-toolbox
 ```
 
-On whichever machine runs SLAM/navigation (the workstation, the robot, or
-both), plus `nav2-bringup` wherever you run RViz, for its Nav2 RViz config:
+On the workstation (RViz with the Nav2 plugins, teleop):
 
 ```bash
-sudo apt install -y ros-lyrical-navigation2 ros-lyrical-slam-toolbox ros-lyrical-nav2-bringup
+sudo apt install -y ros-lyrical-rviz2 ros-lyrical-nav2-rviz-plugins ros-lyrical-nav2-map-server ros-lyrical-teleop-twist-keyboard ros-lyrical-teleop-twist-joy ros-lyrical-joy
 ```
 
 `rosdep install -i --from-path src --rosdistro lyrical -y` installs all of
 these too, since they are declared in the packages' `package.xml`. Rebuild
-afterwards with `colcon build --symlink-install`.
+afterwards with `colcon build --symlink-install`. Both machines need this
+workspace built; the workstation uses it for the robot model's meshes, the
+RViz configs and the teleop commands.
 
 Check that the camera is visible to OpenNI2 (plug it into the robot first):
 
@@ -173,20 +185,15 @@ ros2 run openni2_camera list_devices
 
 ### Robot and workstation on one ROS network
 
-The heavy parts (SLAM, Nav2, RViz) can run on a workstation while the robot
-runs only the drivers. Only `/scan`, `/odom`, `/tf` and velocity commands
-cross the network. On both machines:
+On both machines:
 
 - use the same `ROS_DOMAIN_ID` (e.g. `export ROS_DOMAIN_ID=30` in `~/.bashrc`),
   and stay on the same subnet (the default discovery range);
 - **synchronise the clocks** (e.g. install `chrony` on both and point the robot
   at the workstation). The scan and transforms are timestamped on the robot,
-  and a clock offset of more than a fraction of a second makes SLAM, AMCL and
-  the costmaps drop data with "extrapolation into the future" errors.
-
-Everything also runs on the robot alone if you prefer. The controller is
-Regulated Pure Pursuit rather than Nav2's default MPPI because it is light
-enough for a Raspberry Pi.
+  and a clock offset of more than a fraction of a second makes RViz and
+  anything else on the workstation drop them with "extrapolation into the
+  future" errors.
 
 ### Camera mount
 
@@ -195,70 +202,93 @@ ROS 1's turtlebot_description did on the standard hexagon stack
 (`camera_x=-0.087`, `camera_z=0.287` m from `base_link`). If yours sits
 elsewhere, measure it and change the `camera_*` defaults at the top of that
 file. A wrong height or forward offset shows up as walls being drawn in the
-wrong place.
+wrong place. `view_robot-launch.py` is a quick way to check the robot model,
+frames and scan before mapping.
 
 ### Build a map
 
-On the robot:
+On the robot (two ssh sessions):
 
 ```bash
-ros2 launch turtlebot_bringup turtlebot_bringup-launch.py
+ros2 launch turtlebot_bringup minimal-launch.py
 ```
 
 ```bash
-ros2 launch turtlebot_bringup 3dsensor-launch.py
+ros2 launch turtlebot_navigation slam_demo-launch.py
 ```
 
-On the workstation (or robot):
+On the workstation:
 
 ```bash
-ros2 launch turtlebot_navigation slam-launch.py
-```
-
-```bash
-ros2 launch nav2_bringup rviz_launch.py
+ros2 launch turtlebot_rviz_launchers view_navigation-launch.py
 ```
 
 ```bash
-ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args --remap cmd_vel:=input/teleop
+ros2 run turtlebot_teleop keyboard_teleop
 ```
 
-Drive slowly around the area until the map is complete, then save it:
+Drive slowly around the area, turning in place now and then so the camera sees
+the walls in every direction, until the map is complete. As with ROS 1's
+gmapping_demo you can also send **Nav2 Goal**s in RViz, but only inside the
+part of the map already explored. Then save the map (from either machine):
 
 ```bash
 ros2 run nav2_map_server map_saver_cli -f ~/maps/my_map
 ```
 
+`slam_demo-launch.py navigation:=false` maps without starting Nav2, for a
+lighter load on the robot.
+
 ### Navigate
 
-With the robot running the two launch files above:
+On the robot, copy the map there if you saved it on the workstation, then:
 
 ```bash
-ros2 launch turtlebot_navigation navigation-launch.py map:=$HOME/maps/my_map.yaml
+ros2 launch turtlebot_bringup minimal-launch.py
 ```
 
 ```bash
-ros2 launch nav2_bringup rviz_launch.py
+ros2 launch turtlebot_navigation amcl_demo-launch.py map:=$HOME/maps/my_map.yaml
 ```
 
-In RViz, click **2D Pose Estimate** and drag out where the robot is and which
-way it faces. Navigation becomes active once AMCL has a pose. Then send it
-somewhere with **Nav2 Goal**.
+On the workstation:
 
-To navigate and map at the same time (no saved map; goals must be inside the
-part of the map already explored):
+```bash
+ros2 launch turtlebot_rviz_launchers view_navigation-launch.py
+```
+
+As in ROS 1, AMCL starts out assuming the robot is at the map's origin (where
+mapping began). If it isn't, click **2D Pose Estimate** in RViz and drag out
+where the robot is and which way it faces. Then send it somewhere with
+**Nav2 Goal**.
+
+### Running SLAM or navigation on the workstation instead
+
+The demo launch files are thin wrappers. To keep the robot's load down to the
+drivers, run the pieces separately: `3dsensor-launch.py` on the robot, and
+`slam-launch.py` or `navigation-launch.py` (`map:=...` or `slam:=true`) on the
+workstation:
+
+```bash
+ros2 launch turtlebot_bringup 3dsensor-launch.py
+```
 
 ```bash
 ros2 launch turtlebot_navigation navigation-launch.py slam:=true
 ```
 
+Only `/scan`, `/odom`, `/tf` and velocity commands then cross the network.
+The controller is Regulated Pure Pursuit rather than Nav2's default MPPI
+because it is light enough for a Raspberry Pi, so running it all on the robot
+is the default here, as in ROS 1.
+
 ### Limits of a depth-camera "laser"
 
 The Xtion/Astra sees a ~58° wedge from 0.45 m to about 4 m, compared with
 a lidar's 360° and 10 m or more. The configs in `turtlebot_navigation/config/`
-are tuned for that (slam_toolbox adds scans every 0.2 m, the ranges match
-`depthimage_to_laserscan`, and the robot turns in place towards its path
-before driving and never reverses), but expect the following:
+are tuned for that (slam_toolbox adds a scan every 0.2 m or 0.2 rad of turn,
+the ranges match `depthimage_to_laserscan`, and the robot turns in place
+towards its path before driving and never reverses), but expect the following:
 
 - Map by driving slowly, and turn in place now and then so walls are seen
   from several angles. Featureless corridors and big open rooms are hard

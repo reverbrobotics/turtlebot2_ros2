@@ -1,0 +1,21 @@
+<package format="2">
+  <name>turtlebot_teleop</name>
+  <version>0.1.0</version>
+  <description>
+    Keyboard and joystick teleoperation for the Kobuki-based TurtleBot 2,
+    wired into cmd_vel_mux's teleop input, mirroring the ROS 1
+    turtlebot_teleop. Run on the workstation.
+  </description>
+  <maintainer email="lukasgrasse@gmail.com">Lukas Grasse</maintainer>
+  <license>BSD</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>joy</exec_depend>
+  <exec_depend>teleop_twist_joy</exec_depend>
+  <exec_depend>teleop_twist_keyboard</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

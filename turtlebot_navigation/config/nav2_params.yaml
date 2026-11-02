@@ -67,6 +67,16 @@ amcl:
     z_rand: 0.5
     z_short: 0.05
     scan_topic: scan
+    # Start localized at the map origin (where mapping began), as ROS 1's
+    # amcl did, and correct it with "2D Pose Estimate" in RViz. Without an
+    # initial pose AMCL publishes no map -> odom, and the navigation servers
+    # give up waiting for it after a minute and stay down until relaunched.
+    set_initial_pose: true
+    initial_pose:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+      yaw: 0.0
 
 bt_navigator:
   ros__parameters:
