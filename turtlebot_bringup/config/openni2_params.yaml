@@ -1,0 +1,26 @@
+# openni2_camera driver configuration for 3dsensor-launch.py (Asus Xtion /
+# Orbbec Astra).
+#
+# Only the depth stream is needed for the laser scan, and the driver starts
+# each stream lazily when something subscribes to it, so RGB/IR cost nothing
+# unless you look at them. QVGA depth (320x240) gives a 320-beam scan, far
+# more than SLAM/AMCL use, at a quarter of VGA's USB and CPU load - which
+# matters on a Raspberry Pi.
+#
+# device_id is left at the driver's default, "#1" (the first camera found);
+# the driver logs "device_id is not set! Using first device." for it, which
+# is harmless.
+camera:
+  driver:
+    ros__parameters:
+      depth_mode: QVGA_30Hz
+      color_mode: VGA_30Hz
+      ir_mode: VGA_30Hz
+      # Unregistered depth stays in the depth camera's own frame, which is
+      # what the scan is computed in. Registration (warping depth onto the
+      # RGB image) is only useful for coloured point clouds.
+      depth_registration: false
+      use_device_time: true
+      depth_frame_id: camera_depth_optical_frame
+      ir_frame_id: camera_depth_optical_frame
+      rgb_frame_id: camera_rgb_optical_frame

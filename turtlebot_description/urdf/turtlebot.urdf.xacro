@@ -1,0 +1,82 @@
+<?xml version="1.0"?>
+<!--
+  Kobuki-based TurtleBot 2 with an OpenNI2 depth camera (Asus Xtion Pro /
+  Orbbec Astra) on the top plate.
+
+  The camera pose is relative to base_link (the bottom of the Kobuki shell,
+  10.2 mm above the floor). camera_x/camera_z default to the ROS 1
+  turtlebot_description values for a camera on the standard hexagon stack.
+  Measure your own robot and override them if it differs, e.g.
+
+    xacro turtlebot.urdf.xacro camera_x:=-0.10 camera_z:=0.30
+
+  Only the depth frame matters for SLAM/navigation: the laser scan is
+  published in camera_depth_frame, so its height and forward offset are what
+  place obstacles correctly in the costmaps.
+-->
+<robot name="turtlebot" xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:arg name="camera_x" default="-0.087"/>
+  <xacro:arg name="camera_y" default="0.0"/>
+  <xacro:arg name="camera_z" default="0.287"/>
+  <xacro:arg name="camera_pitch" default="0.0"/>
+
+  <xacro:include filename="$(find kobuki_description)/urdf/kobuki.urdf.xacro"/>
+  <xacro:kobuki/>
+
+  <joint name="camera_joint" type="fixed">
+    <origin xyz="$(arg camera_x) $(arg camera_y) $(arg camera_z)" rpy="0 $(arg camera_pitch) 0"/>
+    <parent link="base_link"/>
+    <child link="camera_link"/>
+  </joint>
+  <link name="camera_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.04 0.18 0.03"/>
+      </geometry>
+      <material name="camera_black">
+        <color rgba="0.1 0.1 0.1 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.04 0.18 0.03"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!--
+    Sensor frames, with the same names and offsets that openni2_camera's own
+    tfs.launch.py uses. The *_optical_frame children are rotated into the
+    camera convention (z forward, x right, y down) that the driver stamps
+    its images with.
+  -->
+  <joint name="camera_depth_joint" type="fixed">
+    <origin xyz="0 -0.02 0" rpy="0 0 0"/>
+    <parent link="camera_link"/>
+    <child link="camera_depth_frame"/>
+  </joint>
+  <link name="camera_depth_frame"/>
+
+  <joint name="camera_depth_optical_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+    <parent link="camera_depth_frame"/>
+    <child link="camera_depth_optical_frame"/>
+  </joint>
+  <link name="camera_depth_optical_frame"/>
+
+  <joint name="camera_rgb_joint" type="fixed">
+    <origin xyz="0 -0.045 0" rpy="0 0 0"/>
+    <parent link="camera_link"/>
+    <child link="camera_rgb_frame"/>
+  </joint>
+  <link name="camera_rgb_frame"/>
+
+  <joint name="camera_rgb_optical_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+    <parent link="camera_rgb_frame"/>
+    <child link="camera_rgb_optical_frame"/>
+  </joint>
+  <link name="camera_rgb_optical_frame"/>
+</robot>
