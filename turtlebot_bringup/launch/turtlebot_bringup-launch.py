@@ -1,7 +1,11 @@
 """Bring up a Kobuki-based TurtleBot 2 the way ROS 1's turtlebot_bringup did.
 
 Starts the base driver (kobuki_node), the cmd_vel multiplexer, the safety
-controller and the velocity smoother, and wires them together:
+controller and the velocity smoother, and wires them together. Also starts
+robot_state_publisher with the TurtleBot URDF (turtlebot_description), so the
+base_footprint -> base_link -> camera_* frames that SLAM and navigation need
+are on /tf_static; kobuki_node itself provides odom -> base_footprint and the
+wheel joint_states.
 
   teleop / nav (input/teleop, input/navigation, ...)
         |
@@ -17,6 +21,8 @@ the mux's teleop input:
 
   ros2 run teleop_twist_keyboard teleop_twist_keyboard \
       --ros-args -r cmd_vel:=/input/teleop
+
+The depth camera / laser scan is started separately by 3dsensor-launch.py.
 """
 
 import os
@@ -27,6 +33,7 @@ import launch.actions
 import launch.launch_description_sources
 import launch_ros.actions
 
+import xacro
 import yaml
 
 
@@ -35,6 +42,7 @@ def generate_launch_description():
     bringup_share = ament_index_python.packages.get_package_share_directory('turtlebot_bringup')
     smoother_share = ament_index_python.packages.get_package_share_directory('kobuki_velocity_smoother')
     safety_share = ament_index_python.packages.get_package_share_directory('kobuki_safety_controller')
+    description_share = ament_index_python.packages.get_package_share_directory('turtlebot_description')
 
     # Base driver: unchanged, its default topics (commands/velocity, odom)
     # are exactly what the smoother is wired up to use below.
@@ -85,8 +93,20 @@ def generate_launch_description():
             ('~/smoothed', '/commands/velocity'),
         ])
 
+    # Robot model: publishes the static frames of the base and camera mount,
+    # and the wheel frames from kobuki_node's joint_states. Edit the camera_*
+    # defaults in turtlebot.urdf.xacro if your camera is mounted differently.
+    robot_description = xacro.process_file(
+        os.path.join(description_share, 'urdf', 'turtlebot.urdf.xacro')).toxml()
+    robot_state_publisher_node = launch_ros.actions.Node(
+        package='robot_state_publisher',
+        executable='robot_state_publisher',
+        output='both',
+        parameters=[{'robot_description': robot_description}])
+
     return launch.LaunchDescription([
         kobuki_node_launch,
+        robot_state_publisher_node,
         cmd_vel_mux_node,
         safety_controller_node,
         velocity_smoother_node,

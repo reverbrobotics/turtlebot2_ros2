@@ -1,0 +1,30 @@
+<package format="2">
+  <name>turtlebot_navigation</name>
+  <version>0.1.0</version>
+  <description>
+    SLAM (slam_toolbox) and navigation (Nav2) launch files and configuration
+    for the Kobuki-based TurtleBot 2 with an OpenNI2 depth camera, the ROS 2
+    equivalent of ROS 1's turtlebot_navigation gmapping_demo / amcl_demo.
+  </description>
+  <maintainer email="lukasgrasse@gmail.com">Lukas Grasse</maintainer>
+  <license>BSD</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>nav2_amcl</exec_depend>
+  <exec_depend>nav2_behaviors</exec_depend>
+  <exec_depend>nav2_bt_navigator</exec_depend>
+  <exec_depend>nav2_collision_monitor</exec_depend>
+  <exec_depend>nav2_controller</exec_depend>
+  <exec_depend>nav2_lifecycle_manager</exec_depend>
+  <exec_depend>nav2_map_server</exec_depend>
+  <exec_depend>nav2_navfn_planner</exec_depend>
+  <exec_depend>nav2_planner</exec_depend>
+  <exec_depend>nav2_regulated_pure_pursuit_controller</exec_depend>
+  <exec_depend>nav2_waypoint_follower</exec_depend>
+  <exec_depend>slam_toolbox</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

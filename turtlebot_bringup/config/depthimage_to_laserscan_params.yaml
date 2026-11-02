@@ -1,0 +1,18 @@
+# depthimage_to_laserscan configuration for 3dsensor-launch.py, following
+# the ROS 1 turtlebot_bringup 3dsensor.launch defaults.
+depthimage_to_laserscan:
+  ros__parameters:
+    scan_time: 0.033
+    # The Xtion/Astra cannot see anything nearer than ~0.45 m, and its depth
+    # noise grows with the square of range, so readings past ~4 m are too
+    # noisy to map with. Keep slam_toolbox's max_laser_range and the
+    # costmaps' obstacle/raytrace ranges at or below range_max.
+    range_min: 0.45
+    range_max: 4.0
+    # Rows around the image centre to collapse into the scan; a few rows
+    # rejects single-pixel noise and catches obstacles slightly above or
+    # below the optical axis.
+    scan_height: 10
+    # Upright (z-up) frame at the depth sensor, so the scan is a valid
+    # planar scan for slam_toolbox, AMCL and the costmaps.
+    output_frame: camera_depth_frame
