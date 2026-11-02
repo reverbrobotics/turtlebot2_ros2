@@ -183,6 +183,49 @@ Check that the camera is visible to OpenNI2 (plug it into the robot first):
 ros2 run openni2_camera list_devices
 ```
 
+### Orbbec Astra
+
+An Asus Xtion works with the steps above. An Orbbec Astra (`lsusb` shows
+`2bc5:0401`, or `0402`/`0404`/`0407` for the Astra S / Mini / Mini S) needs
+Orbbec's own OpenNI2 build: Ubuntu's OpenNI2 has no Orbbec driver, and
+Orbbec's driver crashes when loaded into Ubuntu's library. Install Orbbec's
+library and driver side by side in `/opt/orbbec_openni2`, plus Orbbec's udev
+rules (arm64 files shown; use `x64` instead of `arm64` on a PC):
+
+```bash
+B=https://raw.githubusercontent.com/orbbec/ros_astra_camera/main
+sudo mkdir -p /opt/orbbec_openni2/OpenNI2/Drivers
+sudo curl -fL -o /opt/orbbec_openni2/libOpenNI2.so.0 $B/include/openni2_redist/arm64/libOpenNI2.so
+sudo curl -fL -o /opt/orbbec_openni2/OpenNI.ini $B/include/openni2_redist/arm64/OpenNI.ini
+sudo curl -fL -o /opt/orbbec_openni2/OpenNI2/Drivers/liborbbec.so $B/include/openni2_redist/arm64/OpenNI2/Drivers/liborbbec.so
+sudo curl -fL -o /opt/orbbec_openni2/OpenNI2/Drivers/orbbec.ini $B/include/openni2_redist/arm64/OpenNI2/Drivers/orbbec.ini
+sudo curl -fL -o /etc/udev/rules.d/56-orbbec-usb.rules $B/56-orbbec-usb.rules
+sudo udevadm control --reload && sudo udevadm trigger
+```
+
+Then replug the camera. `3dsensor-launch.py` (and so `slam_demo` /
+`amcl_demo`) automatically starts the camera driver with
+`/opt/orbbec_openni2` first on `LD_LIBRARY_PATH` when that directory exists.
+Standalone tools need it set by hand:
+
+```bash
+LD_LIBRARY_PATH=/opt/orbbec_openni2:$LD_LIBRARY_PATH ros2 run openni2_camera list_devices
+```
+
+Don't copy `liborbbec.so` into Ubuntu's `/usr/lib/*/OpenNI2/Drivers`: the
+camera is then listed but the driver segfaults when opening it.
+
+If the driver instead dies with `undefined symbol: has_buffer_fields_...`,
+the apt `openni2_camera` was built against newer ROS message libraries than
+the ones installed. Either bring the ROS packages up to date, or build
+`openni2_camera` in the workspace against what is installed:
+
+```bash
+sudo apt install libopenni2-dev
+git -C src clone -b 2.3.0 https://github.com/ros-drivers/openni2_camera.git
+colcon build --symlink-install --packages-select openni2_camera
+```
+
 ### Robot and workstation on one ROS network
 
 On both machines:
