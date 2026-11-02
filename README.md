@@ -200,10 +200,23 @@ sudo curl -fL -o /opt/orbbec_openni2/OpenNI.ini $B/include/openni2_redist/arm64/
 sudo curl -fL -o /opt/orbbec_openni2/OpenNI2/Drivers/liborbbec.so $B/include/openni2_redist/arm64/OpenNI2/Drivers/liborbbec.so
 sudo curl -fL -o /opt/orbbec_openni2/OpenNI2/Drivers/orbbec.ini $B/include/openni2_redist/arm64/OpenNI2/Drivers/orbbec.ini
 sudo curl -fL -o /etc/udev/rules.d/56-orbbec-usb.rules $B/56-orbbec-usb.rules
+echo 'ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_interface", ATTRS{idVendor}=="2bc5", ATTR{bInterfaceClass}=="01", ATTR{authorized}="0"' | sudo tee /etc/udev/rules.d/57-orbbec-no-audio.rules
 sudo udevadm control --reload && sudo udevadm trigger
 ```
 
-Then replug the camera. `3dsensor-launch.py` (and so `slam_demo` /
+The last rule disables the Astra's built-in microphone. Otherwise the kernel's
+USB audio driver claims it, its requests to the camera start failing
+(`usb_set_interface failed (-110)` / `(-71)` in `dmesg`), and that wedges
+the camera: after a while the driver logs `Detected re-connect...attempting
+reinit` / `Failed to send a USB control request!` every second until the
+camera is replugged. After replugging, `lsusb -t` should show the Astra's
+Audio interfaces with `Driver=[none]`.
+
+On a Raspberry Pi 5 without the official 5 A supply, all USB ports together
+are limited to 600 mA, and the Astra alone draws close to 500 mA while
+streaming. If the camera still drops off USB, power it through a powered hub.
+
+Once the camera is replugged, `3dsensor-launch.py` (and so `slam_demo` /
 `amcl_demo`) automatically starts the camera driver with
 `/opt/orbbec_openni2` first on `LD_LIBRARY_PATH` when that directory exists.
 Standalone tools need it set by hand:
